@@ -45,7 +45,13 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 			// retry without language
 			return self._parsePage( self._pageTitle );
 		} ).then( function ( response ) {
-			return self._parseHTML( response.parse.text );
+			console.log('API Response:', response);
+			console.log('Text content:', response.parse.text['*']);
+			var result = self._parseHTML( response.parse.text['*'] );
+			console.log('Parsed examples:', result);
+			return result;
+			//return self._parseHTML( response.parse.text );
+			//return self._parseHTML( response.parse.text['*'] );
 		} );
 	};
 
@@ -82,7 +88,7 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 	SELF.prototype._apiGet = function ( params ) {
 		return $.getJSON( this._apiUrl, $.extend( {}, params, {
 			format: 'json',
-			formatversion: 2,
+			//formatversion: 2,
 			origin: '*'
 		} ) ).then( function ( response ) {
 			if ( 'error' in response ) {
@@ -100,11 +106,17 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 	 * @private
 	 */
 	SELF.prototype._findPrevHeader = function ( element ) {
-		var tag = element.children( ':first' ).prop( 'tagName' );
+		var tag = element.prop( 'tagName' );
+		//var tag = element.children( ':first' ).prop( 'tagName' );
 		if ( tag[0] !== 'H' && tag[0] !== 'h' ) {
 			return null;
 		}
-		return this._findPrev( element, '.mw-heading' + ( tag.substr( 1 ) - 1 ) );
+		var level = parseInt(tag.substr( 1 )) - 1;
+    if (level < 1) {
+        return $();  // Return empty jQuery object instead of searching for h0
+    }
+    return this._findPrev( element, 'h' + level );
+		//return this._findPrev( element, '.mw-heading' + ( tag.substr( 1 ) - 1 ) );
 	};
 
 	/**
@@ -143,9 +155,14 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 	};
 
 	SELF.prototype._parseHTML = function ( html ) {
+		console.log('_parseHTML received:', html);
 		var div = document.createElement( 'div' ),
 			self = this;
 		div.innerHTML = html;
+
+		var highlights = $( div ).find( '.mw-highlight' );
+		console.log('Found .mw-highlight elements:', highlights.length);
+
 		// Find all SPARQL Templates
 		var examples = $( div ).find( '.mw-highlight' ).map( function () {
 			var $this = $( this );
@@ -153,12 +170,17 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 			$this.find( '.lineno' ).remove();
 
 			var query = $this.text().trim();
+			console.log('Found query:', query);
 			// Find preceding title element
-			var titleEl = self._findPrev( $this, '.mw-heading2,.mw-heading3,.mw-heading4,.mw-heading5,.mw-heading6,.mw-heading7' );
+			var titleEl = self._findPrev( $this, 'h2, h3, h4, h5, h6, h7' );
+			//var titleEl = self._findPrev( $this, '.mw-heading2,.mw-heading3,.mw-heading4,.mw-heading5,.mw-heading6,.mw-heading7' );
+			console.log('Found titleEl:', titleEl, 'length:', titleEl ? titleEl.length : 0);
 			if ( !titleEl || !titleEl.length ) {
+				console.log('No title found, returning null');
 				return null;
 			}
 			var title = titleEl.children( ':first' ).text().trim();
+			console.log('Title:', title);
 			return {
 				title: title,
 				query: query,
