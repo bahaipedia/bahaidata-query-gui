@@ -101,16 +101,24 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 	 */
 	SELF.prototype._findPrevHeader = function ( element ) {
 		var tag = element.prop( 'tagName' );
-		//var tag = element.children( ':first' ).prop( 'tagName' );
+		
+		// Handle new MediaWiki 1.40+ <div> headings
+		if ( tag === 'DIV' && element.hasClass( 'mw-heading' ) ) {
+			tag = element.children( ':first' ).prop( 'tagName' );
+			var level = parseInt(tag.substr( 1 )) - 1;
+			if (level < 1) return $();
+			return this._findPrev( element, '.mw-heading' + level );
+		}
+		
+		// Handle legacy <hX> headings
 		if ( tag[0] !== 'H' && tag[0] !== 'h' ) {
 			return null;
 		}
 		var level = parseInt(tag.substr( 1 )) - 1;
-    if (level < 1) {
-        return $();  // Return empty jQuery object instead of searching for h0
-    }
-    return this._findPrev( element, 'h' + level );
-		//return this._findPrev( element, '.mw-heading' + ( tag.substr( 1 ) - 1 ) );
+		if (level < 1) {
+			return $();  // Return empty jQuery object instead of searching for h0
+		}
+		return this._findPrev( element, 'h' + level );
 	};
 
 	/**
@@ -160,7 +168,7 @@ wikibase.queryService.api.QuerySamples = ( function ( $ ) {
 
 			var query = $this.text().trim();
 			// Find preceding title element
-			var titleEl = self._findPrev( $this, 'h2, h3, h4, h5, h6, h7' );
+			var titleEl = self._findPrev( $this, 'h2, h3, h4, h5, h6, h7, .mw-heading' );
 			if ( !titleEl || !titleEl.length ) {
 				return null;
 			}
